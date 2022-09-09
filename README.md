@@ -15,23 +15,23 @@ class MyCovariancePrior(CovariancePrior):
         self,
         parameter_bound: Bound = Bound(1e-3, 10),
     ) -> None:
-		super().__init__({"parameter": parameter_bound})
+	super().__init__({"parameter": parameter_bound})
 
     def _covariance_mat(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-		pass
+	pass
 
     def _compute_gradients(self, x: np.ndarray, y: np.ndarray) -> None:
         self._grads = {...}
 
     def __call__(self, x: np.ndarray, y: np.ndarray, observations=False) -> np.ndarray:
-		pass
+	pass
 
 class MyMeanPrior(MeanPrior):
     def __init__(self, parameter_bound: Bound = Bound(-20, 20)) -> None:
-		super().__init__({"parameter": parameter_bound})
+	super().__init__({"parameter": parameter_bound})
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-		pass
+	pass
 
     def _compute_gradients(self, x: np.ndarray, y: np.ndarray) -> None:
         self._grads = {...}
