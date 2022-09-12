@@ -2,7 +2,7 @@
 
 ## Introduction
 
-I built this library to learn about Gaussian Process and their optimization. The code is highly
+I built this library to learn about Gaussian Processes and their optimization. The code is highly
 extensible and adding prior mean/covariance functions is easy as cake! They can be added with
 minimal code:
 
@@ -37,8 +37,8 @@ class MyMeanPrior(MeanPrior):
 ```
 
 
-To fit a prior onto training data, several optimization algorithms can be implemented. For now,
-gradient ascent is available.
+To fit a prior onto training data -- that is find the hyperparameters that maximal the marginal log likelihood --
+several optimization algorithms can be implemented. For now, only gradient ascent is available.
 
 ## Installation
 
