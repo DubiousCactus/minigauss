@@ -79,7 +79,7 @@ class ConstantFunc(MeanPrior):
         super().__init__({"c": bounds})
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-        return self.params["c"] * np.ones_like(x)
+        return self.c * np.ones_like(x)
 
     def _compute_gradients(self, x: np.ndarray, y: np.ndarray) -> None:
         """

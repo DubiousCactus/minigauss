@@ -12,7 +12,7 @@ Prior abstract class and utilities.
 import abc
 import numpy as np
 
-from typing import Dict
+from typing import Any, Dict
 from dataclasses import dataclass
 from numpy.random import default_rng
 
@@ -97,6 +97,12 @@ class Prior(metaclass=abc.ABCMeta):
     @property
     def params_str(self) -> str:
         return ",".join([f"{k}={v:.2f}" for k, v in self._params.items()])
+
+    def __getattribute__(self, __name: str) -> Any:
+        if __name in self._params:
+            return self._params[__name]
+        else:
+            raise AttributeError()
 
 
 from .mean import *

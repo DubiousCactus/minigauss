@@ -33,10 +33,6 @@ class CovariancePrior(Prior, metaclass=abc.ABCMeta):
             K += np.eye(x.shape[0]) * self.sigma_n**2
         return K
 
-    @property
-    def sigma_n(self):
-        return self._params["sigma_n"]
-
     def optimize_one_step(
         self,
         ctx: dict,
@@ -88,8 +84,8 @@ class ExponentialKernel(CovariancePrior):
 
     def _covariance_mat(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         K = np.zeros((x.shape[0], y.shape[0]))
-        sigma_y_sqr = self._params["sigma_y"] ** 2
-        denominator = 2 * (self._params["l"] + self._nugget_const) ** 2
+        sigma_y_sqr = self.sigma_y ** 2
+        denominator = 2 * (self.l + self._nugget_const) ** 2
         for i in range(K.shape[0]):
             K[i, :] = sigma_y_sqr * np.exp(
                 -np.sum((x[i, :] - y) ** 2, axis=1) / denominator
@@ -99,24 +95,24 @@ class ExponentialKernel(CovariancePrior):
     def _compute_gradients(self, x: np.ndarray, y: np.ndarray) -> None:
         def dCov_dSigmaY(x, y):
             K = np.zeros((x.shape[0], y.shape[0]))
-            sigmay_2 = 2 * self._params["sigma_y"]
+            sigmay_2 = 2 * self.sigma_y
             denominator = 2 * (self._params["l"] + self._nugget_const) ** 2
             for i in range(K.shape[0]):
                 K[i, :] = sigmay_2 * np.exp(-np.sum((x[i, :] - y) ** 2) / denominator)
             return K
 
         def dCov_dSigmaN(x, y):
-            return self._params["sigma_n"] * 2 * np.eye(x.shape[0])
+            return self.sigma_n * 2 * np.eye(x.shape[0])
 
         def dCov_dSigmaL(x, y):
             K = np.zeros((x.shape[0], y.shape[0]))
-            sigma_y_sqr = self._params["sigma_y"] ** 2
-            denominator = 2 * (self._params["l"] + self._nugget_const) ** 2
+            sigma_y_sqr = self.sigma_y ** 2
+            denominator = 2 * (self.l + self._nugget_const) ** 2
             for i in range(K.shape[0]):
                 residuals_sqr = np.sum((x[i, :] - y) ** 2)
                 K[i, :] = (
                     sigma_y_sqr * np.exp(-residuals_sqr / denominator) * residuals_sqr
-                ) / (self._params["l"] + self._nugget_const) ** 3
+                ) / (self.l + self._nugget_const) ** 3
             return K
 
         self._grads = {
