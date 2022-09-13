@@ -47,6 +47,8 @@ class MeanPrior(Prior, metaclass=abc.ABCMeta):
 
 class PolynomialFunc(MeanPrior):
     def __init__(self, degree: int, bounds: List[Bound] = []) -> None:
+        if bounds != []:
+            assert len(bounds) == (degree + 1), "You must specify N bounds for a polynomial of degree N"
         super().__init__(
             {
                 str(chr(i + ord("a"))): bounds[i] if bounds != [] else Bound(-20, 20)

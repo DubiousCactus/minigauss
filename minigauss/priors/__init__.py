@@ -100,7 +100,7 @@ class Prior(metaclass=abc.ABCMeta):
 
     def __getattr__(self, __name: str) -> Any:
         try:
-            return self._params[__name]
+            return object.__getattribute__(self, "_params")[__name]
         except KeyError:
             raise AttributeError
 
