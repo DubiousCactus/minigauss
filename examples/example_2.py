@@ -17,7 +17,6 @@ from numpy.random import default_rng
 
 from minigauss import GaussianProcess
 from minigauss.priors import ExponentialKernel, ConstantFunc, Bound
-from minigauss.priors.mean import PolynomialFunc
 
 
 def test_function_1D(x):
