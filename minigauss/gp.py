@@ -49,7 +49,7 @@ class GaussianProcess:
         return self._mean_prior(x)
 
     def covariance(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return self._covariance_prior(x, y)
+        return self._covariance_prior(x, y, observations=False)
 
     def _log_marginal_likelihood(self) -> float:
         """
@@ -196,6 +196,7 @@ class GaussianProcess:
         Output
         ------
         f: GP predictions
+        mean: Prediction mean
         var: Prediction variances
         """
         assert self._x is not None and self._y is not None, "No training data!"
@@ -234,3 +235,24 @@ class GaussianProcess:
         )
         # Take the diagonal to obtain the variance
         return f, posterior_mean.flatten(), np.diag(posterior_K).flatten()
+
+    def sample(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray,np.ndarray,]:
+        """
+        GP prior sampling.
+
+        Input
+        -----
+        x: input points, array of shape (n_samples, n_features)
+
+        Output
+        ------
+        f: GP samples
+        mean: Prior mean
+        var: Prediction variances
+        """
+        mean, K = self.mean(x), self.covariance(x, x)
+        f = np.random.multivariate_normal(
+            mean.flatten(), K, check_valid="ignore"
+        )
+        # Take the diagonal to obtain the variance
+        return f, mean.flatten(), np.diag(K).flatten()

@@ -30,8 +30,7 @@ X_RANGE = (0, 1)
 
 
 rng = default_rng()
-# Prior
-# Sample from the known prior to verify that sampling works well
+# Oracle
 x_oracle = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (100, 1))), axis=0)
 y_oracle = test_function_1D(x_oracle)
 

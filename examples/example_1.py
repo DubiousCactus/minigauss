@@ -28,8 +28,7 @@ NOISE_STD = 0.9
 X_RANGE = (-5, 5)
 
 rng = default_rng()
-# Prior
-# Sample from the known prior to verify that sampling works well
+# Oracle
 x_oracle = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (100, 1))), axis=0)
 y_oracle = test_function_1D(x_oracle)
 

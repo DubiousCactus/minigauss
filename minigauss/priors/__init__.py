@@ -98,11 +98,11 @@ class Prior(metaclass=abc.ABCMeta):
     def params_str(self) -> str:
         return ",".join([f"{k}={v:.2f}" for k, v in self._params.items()])
 
-    def __getattribute__(self, __name: str) -> Any:
-        if __name in self._params:
+    def __getattr__(self, __name: str) -> Any:
+        try:
             return self._params[__name]
-        else:
-            raise AttributeError()
+        except KeyError:
+            raise AttributeError
 
 
 from .mean import *
