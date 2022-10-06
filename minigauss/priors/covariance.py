@@ -12,16 +12,18 @@ Covariance priors.
 import abc
 import numpy as np
 
-from typing import Dict
+from typing import Any, Dict, Optional
 
 from . import Prior, Bound
 
 
 class CovariancePrior(Prior, metaclass=abc.ABCMeta):
-    def __init__(self, bounded_params: Dict[str, Bound]) -> None:
+    def __init__(
+        self, bounded_params: Dict[str, Bound], set_params: Dict[str, Any] = {}
+    ) -> None:
         # Every covariance kernel should have a noise std parameter
         bounded_params["sigma_n"] = Bound(1e-3, 1)
-        super().__init__(bounded_params)
+        super().__init__(bounded_params, set_params)
 
     @abc.abstractmethod
     def _covariance_mat(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -73,18 +75,25 @@ class ExponentialKernel(CovariancePrior):
     def __init__(
         self,
         sigma_y_bounds: Bound = Bound(1e-3, 10),
+        sigma_y: Optional[float] = None,
+        l: Optional[float] = None,
     ) -> None:
+        set_params = {}
+        if sigma_y is not None or l is not None:
+            assert sigma_y is not None and l is not None, "You must set all parameters or none at all."
+            set_params={"l": l, "sigma_y": sigma_y}
         super().__init__(
             {
                 "sigma_y": sigma_y_bounds,
                 "l": Bound(1e-3, 1),
-            }
+            },
+            set_params,
         )
         self._nugget_const = 1e-13  # To prevent division by zero in case l=0
 
     def _covariance_mat(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         K = np.zeros((x.shape[0], y.shape[0]))
-        sigma_y_sqr = self.sigma_y ** 2
+        sigma_y_sqr = self.sigma_y**2
         denominator = 2 * (self.l + self._nugget_const) ** 2
         for i in range(K.shape[0]):
             K[i, :] = sigma_y_sqr * np.exp(
@@ -106,7 +115,7 @@ class ExponentialKernel(CovariancePrior):
 
         def dCov_dSigmaL(x, y):
             K = np.zeros((x.shape[0], y.shape[0]))
-            sigma_y_sqr = self.sigma_y ** 2
+            sigma_y_sqr = self.sigma_y**2
             denominator = 2 * (self.l + self._nugget_const) ** 2
             for i in range(K.shape[0]):
                 residuals_sqr = np.sum((x[i, :] - y) ** 2)

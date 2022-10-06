@@ -12,14 +12,16 @@ Mean priors.
 import abc
 import numpy as np
 
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from . import Prior, Bound
 
 
 class MeanPrior(Prior, metaclass=abc.ABCMeta):
-    def __init__(self, bounded_params: Dict[str, Bound]) -> None:
-        super().__init__(bounded_params)
+    def __init__(
+        self, bounded_params: Dict[str, Bound], set_params: Dict[str, Any] = {}
+    ) -> None:
+        super().__init__(bounded_params, set_params)
 
     @abc.abstractmethod
     def __call__(self, x: np.ndarray) -> np.ndarray:
@@ -46,9 +48,18 @@ class MeanPrior(Prior, metaclass=abc.ABCMeta):
 
 
 class PolynomialFunc(MeanPrior):
-    def __init__(self, degree: int, bounds: List[Bound] = []) -> None:
-        if bounds != []:
-            assert len(bounds) == (degree + 1), "You must specify N bounds for a polynomial of degree N"
+    def __init__(
+        self, degree: int, bounds: List[Bound] = [], set_params: Dict[str, Any] = {}
+    ) -> None:
+        if set_params != {}:
+            assert len(list(set_params.keys())) == (
+                degree - 1
+            ), f"Expected {degree -1} parameters set for a polynomial of degree {degree}"
+            super().__init__({}, set_params)
+        elif bounds != []:
+            assert len(bounds) == (
+                degree + 1
+            ), "You must specify N bounds for a polynomial of degree N"
         super().__init__(
             {
                 str(chr(i + ord("a"))): bounds[i] if bounds != [] else Bound(-20, 20)
@@ -77,8 +88,11 @@ class PolynomialFunc(MeanPrior):
 
 
 class ConstantFunc(MeanPrior):
-    def __init__(self, bounds: Bound = Bound(-20, 20)) -> None:
-        super().__init__({"c": bounds})
+    def __init__(
+            self, bounds: Bound = Bound(-20, 20), value: Optional[float] = None,
+    ) -> None:
+        set_params = {"c": value} if value is not None else {}
+        super().__init__({"c": bounds}, set_params)
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         return self.c * np.ones_like(x)

@@ -25,7 +25,9 @@ class Bound:
 
 
 class Prior(metaclass=abc.ABCMeta):
-    def __init__(self, bounded_params: Dict[str, Bound]) -> None:
+    def __init__(
+        self, bounded_params: Dict[str, Bound], set_params: Dict[str, Any] = {}
+    ) -> None:
         """
         Construct a prior class.
 
@@ -35,7 +37,9 @@ class Prior(metaclass=abc.ABCMeta):
                         hyperparameter optimization).
         """
         self._default_bounds = {}
-        self._params: Dict[str, float] = self._init_params(bounded_params)
+        self._params: Dict[str, float] = (
+            self._init_params(bounded_params) if set_params == {} else set_params
+        )
         self._grads = {}
 
     def _init_params(self, params: Dict[str, Bound]) -> Dict[str, float]:
