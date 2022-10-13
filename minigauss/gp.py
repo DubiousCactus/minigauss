@@ -70,10 +70,13 @@ class GaussianProcess:
             ),
         )
         inv_K = np.linalg.inv(K)
+        _, logdet = np.linalg.slogdet(
+            K
+        )  # Much more robust to overflow than np.linalg.det for larger matrices!
 
         # Compute the log likelihood
         return (
-            -0.5 * np.log(np.linalg.det(K))
+            -0.5 * logdet
             - 0.5 * ((self._y - mu).T @ inv_K @ (self._y - mu)).item()
             - n / 2 * np.log(np.pi * 2)
         )
@@ -93,7 +96,9 @@ class GaussianProcess:
             self._mean_prior.random_init()
             self._covariance_prior.random_init()
             print(f"\t-> Initial mean params: {self._mean_prior.params_str}")
-            print(f"\t-> Initial covariance params: {self._covariance_prior.params_str}")
+            print(
+                f"\t-> Initial covariance params: {self._covariance_prior.params_str}"
+            )
         with tqdm.tqdm(bar_format="{desc}{postfix}") as pbar:
             while i < max_iterations:
                 pbar.set_description(f"Iteration {i}")
@@ -117,6 +122,8 @@ class GaussianProcess:
                 except LinAlgError:
                     break
                 pbar.set_postfix_str(f"Log marginal likelihood: {logml:.2f}")
+                if logml in [float("-inf"), float("+inf")]:
+                    return i, float("-inf")
                 if np.abs(last_logml - logml) <= eps:
                     break
                 last_logml = logml
@@ -129,8 +136,9 @@ class GaussianProcess:
         y: np.ndarray,
         n_restarts=10,
         lr=1e-3,
-        eps=1e-5,
-        max_iterations=1000,
+        eps=1e-3,
+        max_fast_iterations=1000,
+        max_final_iterations=10000,
     ):
         """
         Fit the prior mean and covariance functions to the data points via marginal likelihood
@@ -149,7 +157,7 @@ class GaussianProcess:
 
         for n in range(n_restarts):
             print(f"[*] Optimizing model {n+1}/{n_restarts}...")
-            iteration, logml = self._optimize_model(1e-3, max_iterations, lr)
+            iteration, logml = self._optimize_model(1e-3, max_fast_iterations, lr)
             models[logml] = {
                 "mean": pickle.dumps(self._mean_prior),
                 "cov": pickle.dumps(self._covariance_prior),
@@ -164,7 +172,7 @@ class GaussianProcess:
         self._covariance_prior = pickle.loads(best_model["cov"])
         _, logml = self._optimize_model(
             eps,
-            10 * max_iterations,
+            max_final_iterations,
             lr,
             random_init=False,
             init_iter=best_model["iteration"],
@@ -184,6 +192,17 @@ class GaussianProcess:
         self._K = self._covariance_prior(x, x, observations=True)
         if not self._use_scipy:
             self._K_inv = np.linalg.inv(self._K)
+
+    def observe(self, x: np.ndarray, y: np.ndarray):
+        """
+        After the GP has been fitted onto training data, the training data is used as observations.
+        If the user whishes to observe other points instead, this method may be used to replace the
+        training data.
+        """
+        assert (
+            self._x is not None and self._y is not None
+        ), "You must fit the GP on training data before observing other points!"
+        self._x, self._y = x, y
 
     def predict(self, x_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -236,7 +255,9 @@ class GaussianProcess:
         # Take the diagonal to obtain the variance
         return f, posterior_mean.flatten(), np.diag(posterior_K).flatten()
 
-    def sample(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray,np.ndarray,]:
+    def sample(
+        self, x: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray,]:
         """
         GP prior sampling.
 
@@ -251,8 +272,6 @@ class GaussianProcess:
         var: Prediction variances
         """
         mean, K = self.mean(x), self.covariance(x, x)
-        f = np.random.multivariate_normal(
-            mean.flatten(), K, check_valid="ignore"
-        )
+        f = np.random.multivariate_normal(mean.flatten(), K, check_valid="ignore")
         # Take the diagonal to obtain the variance
         return f, mean.flatten(), np.diag(K).flatten()
