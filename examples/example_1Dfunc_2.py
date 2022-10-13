@@ -26,11 +26,11 @@ def test_function_1D(x):
 NUM_TRAIN_PTS = 40
 NOISE_STD = 0.9
 X_RANGE = (0, 1)
-
+NUM_TARGET_PTS = 400
 
 rng = default_rng()
 # Oracle
-x_oracle = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (100, 1))), axis=0)
+x_oracle = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (NUM_TARGET_PTS, 1))), axis=0)
 y_oracle = test_function_1D(x_oracle)
 
 # Posterior

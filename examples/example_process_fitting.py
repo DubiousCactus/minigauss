@@ -17,7 +17,7 @@ import numpy as np
 from numpy.random import default_rng
 
 from minigauss import GaussianProcess
-from minigauss.priors import Bound, ExponentialKernel, PolynomialFunc
+from minigauss.priors import Bound, ExponentialKernel
 from minigauss.priors.mean import ConstantFunc
 
 NUM_TRAIN_REALIZATIONS = 5
