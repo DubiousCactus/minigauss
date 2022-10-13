@@ -19,20 +19,12 @@ from minigauss import GaussianProcess
 from minigauss.priors import ExponentialKernel, PolynomialFunc, Bound
 from minigauss.priors.mean import ConstantFunc
 
-def test_function_1D(x):
-    return (x * 6 - 2) ** 2 * np.sin(x * 12 - 4)
-
-
 X_RANGE = (-1, 1)
 
 rng = default_rng()
 # Prior
-gp = GaussianProcess(
-    ConstantFunc(value=0),
-    ExponentialKernel(sigma_y=1e-5, l=0.4)
-)
+gp = GaussianProcess(ConstantFunc(value=0), ExponentialKernel(sigma_y=1e-5, l=0.4))
 x = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (100, 1))), axis=0)
-y_oracle = test_function_1D(x)
 
 y1, mean, mean_var = gp.sample(x)
 y2, mean, mean_var = gp.sample(x)

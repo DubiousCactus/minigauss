@@ -208,7 +208,9 @@ class GaussianProcess:
         if not self._use_scipy:
             self._K_inv = np.linalg.inv(self._K)
 
-    def predict(self, x_targets: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def predict(
+        self, x_targets: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         GP model predicting.
 

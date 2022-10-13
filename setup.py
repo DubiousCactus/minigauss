@@ -10,11 +10,11 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='minigauss',
-    packages=find_packages(include=['minigauss', 'minigauss.priors']),
-    version='0.1.0',
-    description='Mini Gaussian Process library',
-    author='Theo Morales',
-    license='MIT',
-    install_requires=['tqdm', 'numpy'],
+    name="minigauss",
+    packages=find_packages(include=["minigauss", "minigauss.priors"]),
+    version="0.1.0",
+    description="Mini Gaussian Process library",
+    author="Theo Morales",
+    license="MIT",
+    install_requires=["tqdm", "numpy"],
 )

@@ -7,7 +7,7 @@
 # Distributed under terms of the MIT license.
 
 """
-Use my Gaussian Process micro library to test it with different data sets and priors.
+Fit a 1D function from noisy observations with minigauss.
 """
 
 import matplotlib.pyplot as plt
@@ -16,17 +16,16 @@ import numpy as np
 from numpy.random import default_rng
 
 from minigauss import GaussianProcess
-from minigauss.priors import ExponentialKernel, ConstantFunc, Bound
+from minigauss.priors import ExponentialKernel, PolynomialFunc
 
 
 def test_function_1D(x):
-    return (x * 6 - 2) ** 2 * np.sin(x * 12 - 4)
+    return 1 / 4 * x**2
 
 
 NUM_TRAIN_PTS = 40
 NOISE_STD = 0.9
-X_RANGE = (0, 1)
-
+X_RANGE = (-5, 5)
 
 rng = default_rng()
 # Oracle
@@ -40,12 +39,10 @@ y_train += NOISE_STD * rng.standard_normal((NUM_TRAIN_PTS, 1))
 
 # Maybe in the future we could do: GaussianProcess(x, y, [PolynomialPrior(deg=2), PolynomialPrior(deg=3), SawToothPrior()])
 # and it would optimise for the best prior model as well as hyperparameters.
-gp = GaussianProcess(
-    ConstantFunc(Bound(0, 10)), ExponentialKernel(sigma_y_bounds=Bound(0, 20))
-)
-gp.fit(x_train, y_train, n_restarts=10, lr=2e-5)
+gp = GaussianProcess(PolynomialFunc(2), ExponentialKernel())
+gp.fit(x_train, y_train, n_restarts=10, lr=1e-3)
 
-# GP model predictions
+# GP model predicting
 f_sample1, mean, mean_var = gp.predict(x_oracle)
 f_sample2, mean, mean_var = gp.predict(x_oracle)
 f_sample3, mean, mean_var = gp.predict(x_oracle)
@@ -70,6 +67,6 @@ ax.fill_between(
 ax.tick_params(axis="both", which="major", labelsize=12)
 ax.set_xlabel("x", fontsize=15)
 ax.set_ylabel("f(x)", fontsize=15)
-ax.set_ylim([-10, 20])
+ax.set_ylim([-3, 8])
 ax.legend(loc="upper left", prop={"size": 12})
 plt.show()

@@ -18,6 +18,7 @@ from numpy.random import default_rng
 from minigauss import GaussianProcess
 from minigauss.priors import ExponentialKernel, PolynomialFunc, Bound
 
+
 def test_function_1D(x):
     return (x * 6 - 2) ** 2 * np.sin(x * 12 - 4)
 
