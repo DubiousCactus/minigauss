@@ -77,11 +77,14 @@ class ExponentialKernel(CovariancePrior):
         sigma_y_bounds: Bound = Bound(1e-3, 10),
         sigma_y: Optional[float] = None,
         l: Optional[float] = None,
+        sigma_n: Optional[float] = None,
     ) -> None:
         set_params = {}
-        if sigma_y is not None or l is not None:
-            assert sigma_y is not None and l is not None, "You must set all parameters or none at all."
-            set_params={"l": l, "sigma_y": sigma_y}
+        if sigma_y is not None or l is not None or sigma_n is not None:
+            assert (
+                sigma_y is not None and l is not None and sigma_n is not None
+            ), "You must set all parameters or none at all."
+            set_params = {"l": l, "sigma_y": sigma_y, "sigma_n": sigma_n}
         super().__init__(
             {
                 "sigma_y": sigma_y_bounds,
