@@ -39,8 +39,8 @@ class GaussianProcess:
     ):
         self._use_scipy = use_scipy
         self._x, self._y = None, None
-        self._mu = None  # Mean vector of training cases
-        self._K = None  # Covariance matrix of training cases
+        self._mu = None  # Mean vector of observation cases
+        self._K = None  # Covariance matrix of observation cases
         self._K_inv = None  # Inverse of K
         self._mean_prior = mean_prior
         self._covariance_prior = covariance_prior
@@ -203,14 +203,18 @@ class GaussianProcess:
             self._x is not None and self._y is not None
         ), "You must fit the GP on training data before observing other points!"
         self._x, self._y = x, y
+        self._mu = self._mean_prior(x)
+        self._K = self._covariance_prior(x, x, observations=True)
+        if not self._use_scipy:
+            self._K_inv = np.linalg.inv(self._K)
 
-    def predict(self, x_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def predict(self, x_targets: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         GP model predicting.
 
         Input
         -----
-        x_test: test set, array of shape (n_samples, n_features)
+        x_targets: targets set, array of shape (n_samples, n_features)
 
         Output
         ------
@@ -218,19 +222,19 @@ class GaussianProcess:
         mean: Prediction mean
         var: Prediction variances
         """
-        assert self._x is not None and self._y is not None, "No training data!"
+        assert self._x is not None and self._y is not None, "No observation data!"
         assert self._K is not None and self._mu is not None, "GP not fitted!"
-        # Correlation matrix between the training and test data
-        K_train_test = self._covariance_prior(self._x, x_test)
-        K_test = self._covariance_prior(x_test, x_test)
-        mu_test = self._mean_prior(x_test)
+        # Correlation matrix between the observation and targets data
+        K_obs_targets = self._covariance_prior(self._x, x_targets)
+        K_targets = self._covariance_prior(x_targets, x_targets)
+        mu_targets = self._mean_prior(x_targets)
 
         ############ METHOD 1: Matrix-based with matrix inverse #################
         if not self._use_scipy:
-            posterior_mean = mu_test + K_train_test.T @ self._K_inv @ (
+            posterior_mean = mu_targets + K_obs_targets.T @ self._K_inv @ (
                 self._y - self._mu
             )
-            posterior_K = K_test - (K_train_test.T @ self._K_inv @ K_train_test)
+            posterior_K = K_targets - (K_obs_targets.T @ self._K_inv @ K_obs_targets)
         #########################################################################
         ############ METHOD 2: Matrix-based with linear system solving ##########
         ## Using this method improves the speed and numerical accuracy compared to computing the
@@ -239,15 +243,15 @@ class GaussianProcess:
         else:
             from scipy import linalg
 
-            solved = linalg.solve(self._K, K_train_test, assume_a="pos").T
-            posterior_K = K_test - solved @ K_train_test
-            posterior_mean = mu_test + solved @ (self._y - self._mu)
+            solved = linalg.solve(self._K, K_obs_targets, assume_a="pos").T
+            posterior_K = K_targets - solved @ K_obs_targets
+            posterior_mean = mu_targets + solved @ (self._y - self._mu)
         #########################################################################
         ################# GENERATE SAMPLES #######################################
         # nugget = 1e-9 * np.eye(posterior_K.shape[0])
         # f = posterior_mean + np.linalg.cholesky(
         # posterior_K + nugget
-        # ) @ np.random.normal(size=(x_test.shape[0], 1))
+        # ) @ np.random.normal(size=(x_targets.shape[0], 1))
         # Or:
         f = np.random.multivariate_normal(
             posterior_mean.flatten(), posterior_K, check_valid="ignore"
