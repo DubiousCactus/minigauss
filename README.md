@@ -147,10 +147,11 @@ Have a look in the examples folder!
 - [ ] Optimization algorithms
 	- [x] Gradient ascent
 	- [ ] Quasi-newton methods
-	 - [ ] ...
+    - [ ] ...
 - [ ] Multiprocessing for faster initial points search
 - [ ] Implement kernel functions
 	- [x] Exponential
+    - [x] Periodic
 	- [ ] Matern
 	- [ ] ...
 - [ ] Implement mean functions
