@@ -108,9 +108,11 @@ class ExponentialKernel(CovariancePrior):
         def dCov_dSigmaY(x, y):
             K = np.zeros((x.shape[0], y.shape[0]))
             sigmay_2 = 2 * self.sigma_y
-            denominator = 2 * (self._params["l"] + self._nugget_const) ** 2
+            denominator = 2 * (self.l + self._nugget_const) ** 2
             for i in range(K.shape[0]):
-                K[i, :] = sigmay_2 * np.exp(-np.sum((x[i, :] - y) ** 2) / denominator)
+                K[i, :] = sigmay_2 * np.exp(
+                    -np.sum((x[i, :] - y) ** 2, axis=1) / denominator
+                )
             return K
 
         def dCov_dSigmaN(x, y):
@@ -121,9 +123,74 @@ class ExponentialKernel(CovariancePrior):
             sigma_y_sqr = self.sigma_y**2
             denominator = 2 * (self.l + self._nugget_const) ** 2
             for i in range(K.shape[0]):
-                residuals_sqr = np.sum((x[i, :] - y) ** 2)
+                residuals_sqr = np.sum((x[i, :] - y) ** 2, axis=1)
                 K[i, :] = (
                     sigma_y_sqr * np.exp(-residuals_sqr / denominator) * residuals_sqr
+                ) / (self.l + self._nugget_const) ** 3
+            return K
+
+        self._grads = {
+            "sigma_y": dCov_dSigmaY(x, x),
+            "sigma_n": dCov_dSigmaN(x, x),
+            "l": dCov_dSigmaL(x, x),
+        }
+
+
+class PeriodicKernel(CovariancePrior):
+    def __init__(
+        self,
+        sigma_y_bounds: Bound = Bound(1e-3, 10),
+        sigma_y: Optional[float] = None,
+        l: Optional[float] = None,
+        sigma_n: Optional[float] = None,
+    ) -> None:
+        set_params = {}
+        if sigma_y is not None or l is not None or sigma_n is not None:
+            assert (
+                sigma_y is not None and l is not None and sigma_n is not None
+            ), "You must set all parameters or none at all."
+            set_params = {"l": l, "sigma_y": sigma_y, "sigma_n": sigma_n}
+        super().__init__(
+            {
+                "sigma_y": sigma_y_bounds,
+                "l": Bound(1e-3, 1),
+            },
+            set_params,
+        )
+        self._nugget_const = 1e-13  # To prevent division by zero in case l=0
+
+    def _covariance_mat(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        K = np.zeros((x.shape[0], y.shape[0]))
+        sigma_y_sqr = self.sigma_y**2
+        l_term = -2 / ((self.l + self._nugget_const) ** 2)
+        for i in range(K.shape[0]):
+            K[i, :] = sigma_y_sqr * np.exp(
+                l_term * np.sin(np.sum((x[i, :] - y), axis=1) / 2) ** 2
+            )
+        return K
+
+    def _compute_gradients(self, x: np.ndarray, y: np.ndarray) -> None:
+        def dCov_dSigmaY(x, y):
+            K = np.zeros((x.shape[0], y.shape[0]))
+            sigmay_2 = 2 * self.sigma_y
+            l_term = -2 / ((self.l + self._nugget_const) ** 2)
+            for i in range(K.shape[0]):
+                K[i, :] = sigmay_2 * np.exp(
+                    l_term * np.sin(np.sum((x[i, :] - y), axis=1) / 2) ** 2
+                )
+            return K
+
+        def dCov_dSigmaN(x, y):
+            return self.sigma_n * 2 * np.eye(x.shape[0])
+
+        def dCov_dSigmaL(x, y):
+            K = np.zeros((x.shape[0], y.shape[0]))
+            sigma_y_sqr = 4 * self.sigma_y**2
+            l_term = -2 / ((self.l + self._nugget_const) ** 2)
+            for i in range(K.shape[0]):
+                residuals_sin_sqr = np.sin(np.sum((x[i, :] - y), axis=1) / 2) ** 2
+                K[i, :] = (
+                    sigma_y_sqr * np.exp(l_term * residuals_sin_sqr) * residuals_sin_sqr
                 ) / (self.l + self._nugget_const) ** 3
             return K
 

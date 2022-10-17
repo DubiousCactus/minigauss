@@ -11,6 +11,7 @@ Simple Gaussian Process Regression with Numpy.
 
 import tqdm
 import pickle
+import signal
 import numpy as np
 
 from typing import Tuple
@@ -44,6 +45,13 @@ class GaussianProcess:
         self._K_inv = None  # Inverse of K
         self._mean_prior = mean_prior
         self._covariance_prior = covariance_prior
+        self._fitting = False
+
+        def exit_gracefully(*args):
+            self._fitting = False
+
+        signal.signal(signal.SIGINT, exit_gracefully)
+        signal.signal(signal.SIGTERM, exit_gracefully)
 
     def mean(self, x: np.ndarray) -> np.ndarray:
         return self._mean_prior(x)
@@ -100,7 +108,7 @@ class GaussianProcess:
                 f"\t-> Initial covariance params: {self._covariance_prior.params_str}"
             )
         with tqdm.tqdm(bar_format="{desc}{postfix}") as pbar:
-            while i < max_iterations:
+            while i < max_iterations and self._fitting:
                 pbar.set_description(f"Iteration {i}")
                 pbar.update()
                 try:
@@ -119,7 +127,8 @@ class GaussianProcess:
                     )
                     # Now compute the total log ML
                     logml = self._log_marginal_likelihood()
-                except LinAlgError:
+                except LinAlgError as e:
+                    print(e)
                     break
                 pbar.set_postfix_str(f"Log marginal likelihood: {logml:.2f}")
                 if logml in [float("-inf"), float("+inf")]:
@@ -136,7 +145,7 @@ class GaussianProcess:
         y: np.ndarray,
         n_restarts=10,
         lr=1e-3,
-        eps=1e-3,
+        eps=1e-5,
         max_fast_iterations=1000,
         max_final_iterations=10000,
     ):
@@ -154,10 +163,11 @@ class GaussianProcess:
         # Optimise prior parameters
         n_restarts = 1 if n_restarts == 0 else n_restarts
         models = {}
+        self._fitting = True
 
         for n in range(n_restarts):
             print(f"[*] Optimizing model {n+1}/{n_restarts}...")
-            iteration, logml = self._optimize_model(1e-3, max_fast_iterations, lr)
+            iteration, logml = self._optimize_model(1e-2, max_fast_iterations, lr)
             models[logml] = {
                 "mean": pickle.dumps(self._mean_prior),
                 "cov": pickle.dumps(self._covariance_prior),
