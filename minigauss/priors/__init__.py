@@ -58,8 +58,10 @@ class Prior(metaclass=abc.ABCMeta):
         for param in self._params.keys():
             if param in bounds:
                 bound = bounds[param]
-            else:
+            elif param in self._default_bounds.keys():
                 bound = self._default_bounds[param]
+            else:
+                return
             # val = rng.normal(scale=bound.std, size=1).item()
             self._params[param] = rng.uniform(
                 low=bound.min, high=bound.max, size=1

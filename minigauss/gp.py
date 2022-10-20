@@ -9,12 +9,14 @@
 Simple Gaussian Process Regression with Numpy.
 """
 
+import scipy
 import tqdm
 import pickle
 import signal
 import numpy as np
 
-from typing import Tuple
+from scipy import linalg
+from typing import Optional, Tuple
 from numpy.linalg import LinAlgError
 
 from .priors import MeanPrior, CovariancePrior
@@ -36,7 +38,7 @@ class GaussianProcess:
         self,
         mean_prior: MeanPrior,
         covariance_prior: CovariancePrior,
-        use_scipy=False,
+        use_scipy=True,
     ):
         self._use_scipy = use_scipy
         self._x, self._y = None, None
@@ -77,27 +79,31 @@ class GaussianProcess:
                 self._x, self._x, observations=True  # Add the noise variance estimate
             ),
         )
-        inv_K = np.linalg.inv(K)
+        residuals = self._y - mu
+        if not self._use_scipy:
+            inv_K = np.linalg.inv(K)
+        else:
+            # This is actually slower!
+            solved = linalg.solve(K, residuals, assume_a="pos")
         _, logdet = np.linalg.slogdet(
             K
         )  # Much more robust to overflow than np.linalg.det for larger matrices!
+        data_term = residuals.T @ (inv_K @ residuals if not self._use_scipy else solved)
 
         # Compute the log likelihood
-        return (
-            -0.5 * logdet
-            - 0.5 * ((self._y - mu).T @ inv_K @ (self._y - mu)).item()
-            - n / 2 * np.log(np.pi * 2)
-        )
+        return (-0.5 * logdet) - (0.5 * data_term.item()) - ((n / 2) * np.log(np.pi * 2))
 
     def _optimize_model(
         self,
         eps: float,
         max_iterations: int,
         lr: float,
+        decay_rate: Optional[float] = None,
+        decay_every=50,
         random_init=True,
         init_iter=0,
         init_logml=float("-inf"),
-    ) -> Tuple[float, float]:
+    ) -> Tuple[float, float, float]:
         assert self._x is not None and self._y is not None, "No training data!"
         i, logml, last_logml = init_iter, float("-inf"), init_logml
         if random_init:
@@ -111,25 +117,24 @@ class GaussianProcess:
             while i < max_iterations and self._fitting:
                 pbar.set_description(f"Iteration {i}")
                 pbar.update()
-                try:
-                    # First the mean!
-                    # Set observations=True to add the noise variance estimate
-                    K_inv = np.linalg.inv(
-                        self._covariance_prior(self._x, self._x, observations=True)
-                    )
-                    self._mean_prior.optimize_one_step(
-                        {"K_inv": K_inv}, self._x, self._y, lr
-                    )
-                    # Then the covariance!
-                    mu = self.mean(self._x)
-                    self._covariance_prior.optimize_one_step(
-                        {"mu": mu}, self._x, self._y, lr
-                    )
-                    # Now compute the total log ML
-                    logml = self._log_marginal_likelihood()
-                except LinAlgError as e:
-                    print(e)
-                    break
+                if decay_rate is not None and i % decay_every == 0:
+                    lr = lr * decay_rate ** (i / decay_every)
+                # TODO: Compute updates for mean + kernel, THEN apply updates!
+                # First the mean!
+                # Set observations=True to add the noise variance estimate
+                K_inv = np.linalg.inv(
+                    self._covariance_prior(self._x, self._x, observations=True)
+                )
+                mu = self.mean(self._x)
+                # Then the covariance!
+                self._mean_prior.optimize_one_step(
+                    {"K_inv": K_inv}, self._x, self._y, lr
+                )
+                self._covariance_prior.optimize_one_step(
+                    {"mu": mu}, self._x, self._y, lr
+                )
+                # Now compute the total log ML
+                logml = self._log_marginal_likelihood()
                 pbar.set_postfix_str(f"Log marginal likelihood: {logml:.2f}")
                 if logml in [float("-inf"), float("+inf")]:
                     return i, float("-inf")
@@ -137,16 +142,17 @@ class GaussianProcess:
                     break
                 last_logml = logml
                 i += 1
-        return i, logml
+        return i, logml, lr
 
     def fit(
         self,
         x: np.ndarray,
         y: np.ndarray,
         n_restarts=10,
-        lr=1e-3,
+        lr=3e-5,
+        decay_rate: Optional[float] = 0.9,
         eps=1e-5,
-        max_fast_iterations=1000,
+        max_fast_iterations=100,
         max_final_iterations=10000,
     ):
         """
@@ -167,11 +173,14 @@ class GaussianProcess:
 
         for n in range(n_restarts):
             print(f"[*] Optimizing model {n+1}/{n_restarts}...")
-            iteration, logml = self._optimize_model(1e-2, max_fast_iterations, lr)
+            iteration, logml, last_lr = self._optimize_model(
+                1e-2, max_fast_iterations, lr, decay_every=50, decay_rate=decay_rate
+            )
             models[logml] = {
                 "mean": pickle.dumps(self._mean_prior),
                 "cov": pickle.dumps(self._covariance_prior),
                 "iteration": iteration,
+                "lr": last_lr,
             }
         best_logml = max(models.keys())
         best_model = models[best_logml]
@@ -180,13 +189,15 @@ class GaussianProcess:
         )
         self._mean_prior = pickle.loads(best_model["mean"])
         self._covariance_prior = pickle.loads(best_model["cov"])
-        _, logml = self._optimize_model(
+        _, logml, _ = self._optimize_model(
             eps,
             max_final_iterations,
-            lr,
+            best_model["lr"],
             random_init=False,
             init_iter=best_model["iteration"],
             init_logml=best_logml,
+            decay_rate=decay_rate,
+            decay_every=150,
         )
         print(
             "\n\n*****************************************************************************"
@@ -253,20 +264,18 @@ class GaussianProcess:
         ## inverse of K directly. Especially since it can make use of the fact that K is symmetric
         ## and positive definite. See https://www.johndcook.com/blog/2010/01/19/dont-invert-that-matrix/
         else:
-            from scipy import linalg
-
             solved = linalg.solve(self._K, K_obs_targets, assume_a="pos").T
             posterior_K = K_targets - solved @ K_obs_targets
             posterior_mean = mu_targets + solved @ (self._y - self._mu)
         #########################################################################
         ################# GENERATE SAMPLES #######################################
-        # nugget = 1e-9 * np.eye(posterior_K.shape[0])
+        # nugget = 1e-8 * np.eye(posterior_K.shape[0])
         # f = posterior_mean + np.linalg.cholesky(
-        # posterior_K + nugget
+            # posterior_K + nugget
         # ) @ np.random.normal(size=(x_targets.shape[0], 1))
         # Or:
         f = np.random.multivariate_normal(
-            posterior_mean.flatten(), posterior_K, check_valid="ignore"
+        posterior_mean.flatten(), posterior_K, check_valid="ignore"
         )
         # Take the diagonal to obtain the variance
         return f, posterior_mean.flatten(), np.diag(posterior_K).flatten()

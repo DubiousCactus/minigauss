@@ -20,8 +20,8 @@ from minigauss import GaussianProcess
 from minigauss.priors import Bound, ExponentialKernel
 from minigauss.priors.mean import ConstantFunc
 
-NUM_TRAIN_REALIZATIONS = 5
-NUM_TRAIN_PTS_PER_REALIZATION = 30
+NUM_TRAIN_REALIZATIONS = 6
+NUM_TRAIN_PTS_PER_REALIZATION = 60
 MAX_NUM_OBS_PTS = 40
 X_RANGE = (0, 5)
 NUM_TARGET_PTS = 400
@@ -30,7 +30,7 @@ NUM_TARGET_PTS = 400
 rng = default_rng()
 # Oracle process (a preset GP)
 orcale_gp = GaussianProcess(
-    ConstantFunc(value=0), ExponentialKernel(sigma_y=2.3, l=0.4, sigma_n=0.1)
+    ConstantFunc(value=0), ExponentialKernel(sigma_y=2.3, l=0.4, sigma_n=0.8)
 )  # Add a little bit of noise
 
 # Training data: in practice, you may have arrays of measurements from independent realizations of
@@ -46,15 +46,18 @@ for i in range(NUM_TRAIN_REALIZATIONS):
     y_train[i, :] = np.expand_dims(y, axis=1)  # TODO: Return same dim as input!
 
 # Defining our GP that we want to fit to the data (to hopefully learn the oracle hyperparameters)
-gp = GaussianProcess(ConstantFunc(bounds=Bound(-1, 1)), ExponentialKernel())
+# Should fit: ConstantFunc(value=7), ExponentialKernel(sigma_y=2.3, l=0.4, sigma_n=0.1)
+gp = GaussianProcess(ConstantFunc(), ExponentialKernel(), use_scipy=False)
 # Training the gp: to keep things simple in the library, let's merge all data points into one
 # training set.
+# TODO: Implement mini-batch training
 gp.fit(
     np.vstack(x_train),
     np.vstack(y_train),
-    n_restarts=20,
-    max_fast_iterations=100,
-    lr=1e-3,
+    n_restarts=10,
+    max_fast_iterations=50,
+    lr=1e-4,
+    decay_rate=0.99
 )
 
 

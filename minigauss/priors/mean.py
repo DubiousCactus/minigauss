@@ -37,7 +37,7 @@ class MeanPrior(Prior, metaclass=abc.ABCMeta):
     ) -> None:
         assert "K_inv" in ctx, "K_inv not set in context!"
         mu = self(x)
-        self._compute_gradients(x, y)
+        self._compute_gradients(x, x)
         if optimizer == "gradient_ascent":
             residuals_Kinv = (y - mu).T @ ctx["K_inv"]
             for param in self._params.keys():
@@ -65,7 +65,7 @@ class PolynomialFunc(MeanPrior):
             ), "You must specify N+1 bounds for a polynomial of degree N"
         super().__init__(
             {
-                str(chr(i + ord("a"))): bounds[i] if bounds != [] else Bound(-20, 20)
+                str(chr(i + ord("a"))): bounds[i] if bounds != [] else Bound(-1, 1)
                 for i in range(degree + 1)
             }
         )
@@ -93,7 +93,7 @@ class PolynomialFunc(MeanPrior):
 class ConstantFunc(MeanPrior):
     def __init__(
         self,
-        bounds: Bound = Bound(-20, 20),
+        bounds: Bound = Bound(-1, 1),
         value: Optional[float] = None,
     ) -> None:
         set_params = {"c": value} if value is not None else {}

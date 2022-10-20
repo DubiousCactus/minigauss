@@ -26,7 +26,7 @@ def test_function_1D(x):
 
 
 NUM_TRAIN_PTS = 50
-NOISE_STD = 0.6
+NOISE_STD = 1.1
 X_RANGE = (0, 15)
 NUM_TARGET_PTS = 400
 
@@ -43,7 +43,7 @@ y_train += NOISE_STD * rng.standard_normal((NUM_TRAIN_PTS, 1))
 # Maybe in the future we could do: GaussianProcess(x, y, [PolynomialPrior(deg=2), PolynomialPrior(deg=3), SawToothPrior()])
 # and it would optimise for the best prior model as well as hyperparameters.
 gp = GaussianProcess(ConstantFunc(), PeriodicKernel())
-gp.fit(x_train, y_train, n_restarts=10, lr=1e-4)
+gp.fit(x_train, y_train, n_restarts=10, lr=1e-3)
 
 # GP model predictions
 f_sample1, mean, mean_var = gp.predict(x_oracle)

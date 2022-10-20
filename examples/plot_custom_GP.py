@@ -23,7 +23,7 @@ X_RANGE = (-1, 1)
 
 rng = default_rng()
 # Prior
-gp = GaussianProcess(ConstantFunc(value=0), ExponentialKernel(sigma_y=1e-5, l=0.4))
+gp = GaussianProcess(ConstantFunc(value=0), ExponentialKernel(sigma_y=1e-5, l=0.4, sigma_n=0))
 x = np.sort((rng.uniform(X_RANGE[0], X_RANGE[1], (100, 1))), axis=0)
 
 y1, mean, mean_var = gp.sample(x)

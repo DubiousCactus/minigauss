@@ -16,7 +16,7 @@ import numpy as np
 from numpy.random import default_rng
 
 from minigauss import GaussianProcess
-from minigauss.priors import ExponentialKernel, PolynomialFunc
+from minigauss.priors import ExponentialKernel, PolynomialFunc, ConstantFunc
 
 
 def test_function_1D(x):
@@ -24,7 +24,7 @@ def test_function_1D(x):
 
 
 NUM_TRAIN_PTS = 40
-NOISE_STD = 0.9
+NOISE_STD = 1.2
 X_RANGE = (-5, 5)
 NUM_TARGET_PTS = 400
 
@@ -40,8 +40,8 @@ y_train += NOISE_STD * rng.standard_normal((NUM_TRAIN_PTS, 1))
 
 # Maybe in the future we could do: GaussianProcess(x, y, [PolynomialPrior(deg=2), PolynomialPrior(deg=3), SawToothPrior()])
 # and it would optimise for the best prior model as well as hyperparameters.
-gp = GaussianProcess(PolynomialFunc(2), ExponentialKernel())
-gp.fit(x_train, y_train, n_restarts=10, lr=1e-3)
+gp = GaussianProcess(ConstantFunc(), ExponentialKernel(), use_scipy=True)
+gp.fit(x_train, y_train, n_restarts=10, lr=3e-5, max_fast_iterations=100)
 
 # GP model predicting
 f_sample1, mean, mean_var = gp.predict(x_oracle)
