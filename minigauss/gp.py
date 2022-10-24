@@ -49,12 +49,6 @@ class GaussianProcess:
         self._covariance_prior = covariance_prior
         self._fitting = False
 
-        def exit_gracefully(*args):
-            self._fitting = False
-
-        signal.signal(signal.SIGINT, exit_gracefully)
-        signal.signal(signal.SIGTERM, exit_gracefully)
-
     def mean(self, x: np.ndarray) -> np.ndarray:
         return self._mean_prior(x)
 
@@ -163,6 +157,13 @@ class GaussianProcess:
         print(
             f"[*] Fitting the training data with log marginal likelihood maximization..."
         )
+
+        def exit_gracefully(*args):
+            self._fitting = False
+
+        prev_sigint_handler = signal.signal(signal.SIGINT, exit_gracefully)
+        prev_sigterm_handler = signal.signal(signal.SIGTERM, exit_gracefully)
+
         # TODO: Multiprocessing
         self._n_points = x.shape[0]
         self._x, self._y = x, y
@@ -213,6 +214,9 @@ class GaussianProcess:
         self._K = self._covariance_prior(x, x, observations=True)
         if not self._use_scipy:
             self._K_inv = np.linalg.inv(self._K)
+
+        signal.signal(signal.SIGINT, prev_sigint_handler)
+        signal.signal(signal.SIGTERM, prev_sigterm_handler)
 
     def observe(self, x: np.ndarray, y: np.ndarray):
         """
