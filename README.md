@@ -1,5 +1,7 @@
 # MiniGauss: a numpy-only Gaussian Process library
 
+Check out my [blog post](https://notes.theomorales.com/Gaussian+%26+Neural+Processes/Gaussian+Processes+from+A+to+Z) for a deep dive into Gaussian Processes from almost no pre-requisites! 
+
 ## Introduction
 
 I built this library to learn about Gaussian Processes and their optimization. The code is highly
